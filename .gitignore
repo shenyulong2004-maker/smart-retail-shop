@@ -1,0 +1,24 @@
+# Maven #
+target/
+
+# IDEA #
+.idea/
+*.iml
+
+# Eclipse #
+.settings/
+.classpath
+.project
+
+# JVM crash logs
+hs_err_pid*.log
+replay_pid*.log
+
+# Docker data
+.docker-data/
+
+# VS Code
+.vscode/
+
+# Temporary docs
+新建 DOCX 文档.md

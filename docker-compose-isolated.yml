@@ -1,0 +1,98 @@
+# ==========================================
+# mall 项目隔离环境 — Docker Compose 配置
+# 所有数据存储在项目目录下的 .docker-data/
+# 端口全部避开主机已有服务，互不影响
+# ==========================================
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:5.7
+    container_name: mall-mysql
+    command: mysqld --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: mall                   # 自动创建 mall 数据库
+    ports:
+      - "3308:3306"                          # 主机3308 → 容器3306（避开已有的3306和3307）
+    volumes:
+      - ./.docker-data/mysql/data:/var/lib/mysql
+      - ./.docker-data/mysql/log:/var/log/mysql
+      - ./document/sql:/docker-entrypoint-initdb.d  # 首次启动自动导入 mall.sql
+    networks:
+      - mall-net
+
+  redis:
+    image: redis:7
+    container_name: mall-redis
+    command: redis-server --appendonly yes
+    restart: unless-stopped
+    volumes:
+      - ./.docker-data/redis/data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - mall-net
+
+  elasticsearch:
+    image: elasticsearch:7.17.3
+    container_name: mall-elasticsearch
+    restart: unless-stopped
+    environment:
+      - "cluster.name=elasticsearch"
+      - "discovery.type=single-node"
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - "xpack.security.enabled=false"
+    volumes:
+      - ./.docker-data/elasticsearch/data:/usr/share/elasticsearch/data
+      - ./.docker-data/elasticsearch/plugins:/usr/share/elasticsearch/plugins
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    networks:
+      - mall-net
+
+  rabbitmq:
+    image: rabbitmq:3.9.11-management
+    container_name: mall-rabbitmq
+    restart: unless-stopped
+    volumes:
+      - ./.docker-data/rabbitmq/data:/var/lib/rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"                        # 管理界面
+    networks:
+      - mall-net
+
+  mongo:
+    image: mongo:4
+    container_name: mall-mongo
+    restart: unless-stopped
+    volumes:
+      - ./.docker-data/mongo/db:/data/db
+    ports:
+      - "27017:27017"
+    networks:
+      - mall-net
+
+  minio:
+    image: minio/minio
+    container_name: mall-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    volumes:
+      - ./.docker-data/minio/data:/data
+    environment:
+      - "MINIO_ROOT_USER=minioadmin"
+      - "MINIO_ROOT_PASSWORD=minioadmin"
+    ports:
+      - "9090:9000"                          # API 端口（主机:容器）
+      - "9001:9001"                          # 控制台端口
+    networks:
+      - mall-net
+
+networks:
+  mall-net:
+    name: mall-net
+    driver: bridge
